@@ -2,21 +2,51 @@ Laravel 12 Gemini API Integration
 
 Este proyecto es una implementación de backend utilizando Laravel 12 que actúa como un wrapper/proxy seguro para interactuar con la Inteligencia Artificial de Google, específicamente el modelo Gemini 2.5 Flash Lite.
 
-El sistema expone endpoints RESTful para enviar mensajes de chat y verificar el estado del servicio, manejando la autenticación y el manejo de errores de forma centralizada.
+El sistema está diseñado para ser Stateless y compatible con entornos Serverless como Vercel.
+
+🌐 Demo en Vivo
+
+La API se encuentra desplegada y operativa en Vercel:
+
+Base URL: https://chatgpt-api-ruby.vercel.app
+
+Endpoint
+
+Método
+
+Descripción
+
+Estado
+
+/api/gemini/chat
+
+POST
+
+Chat con la IA
+
+✅ Activo
+
+/api/gemini/health
+
+GET
+
+Verificación de servicio
+
+✅ Activo
 
 🚀 Características
 
 Integración con Gemini 2.5 Flash Lite: Utiliza la última versión ligera y rápida del modelo.
 
+Serverless Ready: Configurado para funcionar sin persistencia de archivos locales (Vercel/AWS Lambda).
+
 Validación de Datos: Reglas estrictas para message, temperature y maxTokens.
 
-Manejo de Errores Robusto: Control de excepciones, tiempos de espera (timeouts) y reintentos automáticos (retries) en caso de fallos de red.
+Manejo de Errores Robusto: Control de excepciones, tiempos de espera (timeouts) y reintentos automáticos.
 
-Configuración Segura: Las claves de API se manejan a través de variables de entorno y archivos de configuración de servicios.
+Seguridad: API Key protegida en el servidor; el cliente nunca la ve.
 
-Health Check: Endpoint dedicado para verificar la conectividad y configuración de la API Key.
-
-🛠️ Requisitos Previos
+🛠️ Requisitos Previos (Local)
 
 PHP 8.2 o superior.
 
@@ -24,7 +54,7 @@ Composer.
 
 Una API Key de Google AI Studio.
 
-⚙️ Instalación y Configuración
+⚙️ Instalación Local
 
 Clonar el repositorio
 
@@ -38,19 +68,17 @@ composer install
 
 
 Configurar el entorno
-Copia el archivo de ejemplo y genera la clave de la aplicación:
 
 cp .env.example .env
 php artisan key:generate
 
 
-Configurar la API Key de Gemini
-Abre el archivo .env y agrega tu clave de API:
+Configurar la API Key
+En tu archivo .env:
 
 GEMINI_API_KEY="tu_api_key_aqui"
+SESSION_DRIVER=cookie  # Importante para simular entorno serverless
 
-
-Nota: La configuración se carga en config/services.php bajo la clave gemini.api_key.
 
 🔌 Documentación de la API
 
@@ -58,15 +86,11 @@ Nota: La configuración se carga en config/services.php bajo la clave gemini.api
 
 Envía un mensaje al modelo y recibe una respuesta generada.
 
-URL: /api/gemini/chat
+URL Producción: https://chatgpt-api-ruby.vercel.app/api/gemini/chat
+
+URL Local: http://localhost:8000/api/gemini/chat
 
 Método: POST
-
-Headers:
-
-Content-Type: application/json
-
-Accept: application/json
 
 Cuerpo de la Solicitud (JSON):
 
@@ -96,7 +120,7 @@ float
 
 No
 
-Creatividad de la respuesta.
+Creatividad.
 
 0.0 a 2.0 (Default: 0.7).
 
@@ -106,19 +130,19 @@ integer
 
 No
 
-Longitud máx de la respuesta.
+Longitud máx.
 
 1 a 8192 (Default: 2048).
 
-Ejemplo de Solicitud (cURL):
+Ejemplo de uso (cURL):
 
-curl -X POST http://localhost/api/gemini/chat \
+curl -X POST [https://chatgpt-api-ruby.vercel.app/api/gemini/chat](https://chatgpt-api-ruby.vercel.app/api/gemini/chat) \
 -H "Content-Type: application/json" \
 -H "Accept: application/json" \
 -d '{
-    "message": "Explica qué es Laravel en una frase",
-    "temperature": 0.5,
-    "maxTokens": 100
+    "message": "Escribe un poema corto sobre programación",
+    "temperature": 1.0,
+    "maxTokens": 500
 }'
 
 
@@ -127,33 +151,17 @@ Respuesta Exitosa (200 OK):
 {
     "success": true,
     "data": {
-        "message": "Laravel es un framework de PHP elegante y expresivo diseñado para facilitar y acelerar el desarrollo de aplicaciones web robustas.",
+        "message": "Código en pantalla,\nluz en la oscuridad,\nun bug se escapa,\n¡café y libertad!",
         "model": "gemini-2.5-flash-lite"
-    }
-}
-
-
-Respuesta de Error (Ej. 422 Unprocessable Entity):
-
-{
-    "message": "The message field is required.",
-    "errors": {
-        "message": [
-            "The message field is required."
-        ]
     }
 }
 
 
 2. Health Check
 
-Verifica si el servicio está operativo y la API Key está configurada correctamente.
-
 URL: /api/gemini/health
 
 Método: GET
-
-Respuesta Exitosa (200 OK):
 
 {
     "status": "ok",
@@ -163,26 +171,36 @@ Respuesta Exitosa (200 OK):
 }
 
 
-📂 Estructura del Código
+☁️ Detalles del Despliegue en Vercel
 
-Controlador: App\Http\Controllers\GeminiController.php
+Este proyecto tiene configuraciones específicas para correr en una arquitectura Serverless:
 
-Contiene la lógica de negocio, validación y conexión HTTP con Google.
+Almacenamiento Efímero: No se usa SQLite ni almacenamiento local de archivos.
 
-Rutas: routes/api.php
+Sesiones & Caché:
 
-Define el grupo de rutas con prefijo gemini.
+SESSION_DRIVER: Configurado como cookie (las sesiones viajan encriptadas al navegador).
 
-Configuración: config/services.php
+CACHE_DRIVER: Configurado como array (la caché vive solo lo que dura la petición).
 
-Mapea la variable de entorno a la configuración de Laravel.
+Configuración Vercel:
+
+Se utiliza un archivo vercel.json para redirigir el tráfico al index.php de Laravel.
+
+Los logs se redirigen a stderr para ser visibles en el dashboard de Vercel.
+
+Estructura de Archivos Clave
+
+api/index.php: Punto de entrada para el runtime de Vercel.
+
+vercel.json: Configuración de rutas y entorno.
 
 🛡️ Seguridad
 
-Bloqueo de Contenido: El controlador implementa safetySettings para bloquear contenido de acoso (HARASSMENT) y discurso de odio (HATE_SPEECH) con un umbral BLOCK_MEDIUM_AND_ABOVE.
+Bloqueo de Contenido: Filtros de seguridad activos (HARM_CATEGORY_HARASSMENT, etc.).
 
-Logs: Los errores de conexión y respuestas vacías se registran en storage/logs/laravel.log para facilitar la depuración sin exponer detalles sensibles al cliente.
+Logs: Errores registrados sin exponer datos sensibles.
 
 📄 Licencia
 
-Este proyecto es de código abierto y está disponible bajo la licencia MIT.
+Este proyecto es de código abierto bajo la licencia MIT.
